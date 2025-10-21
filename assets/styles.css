@@ -1,0 +1,81 @@
+@font-face {
+  font-family: 'Hiragino Kaku Gothic ProN';
+  src: local('Hiragino Kaku Gothic ProN'), local('ヒラギノ角ゴ ProN W3');
+  font-display: swap;
+}
+
+html, body, [class*="css"] {
+  font-family: 'Hiragino Kaku Gothic ProN','Hiragino Sans','Noto Sans JP','Meiryo',sans-serif;
+}
+
+.main > div {
+  padding-top: 1rem;
+}
+
+.kpi-card {
+  background-color: var(--background-color, #f8f9fa);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kpi-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.kpi-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.kpi-badge {
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kpi-badge.up {
+  background-color: rgba(46, 204, 113, 0.18);
+  color: #1e8449;
+}
+
+.kpi-badge.down {
+  background-color: rgba(231, 76, 60, 0.18);
+  color: #c0392b;
+}
+
+.chart-container {
+  margin-bottom: 1.5rem;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.chart-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.chart-download {
+  font-size: 0.85rem;
+}
