@@ -4,7 +4,14 @@ from pathlib import Path
 from typing import Tuple
 
 import pandas as pd
-import streamlit as st
+
+try:
+    import streamlit as st
+except ModuleNotFoundError as exc:  # pragma: no cover - executed only when Streamlit is absent
+    st = None  # type: ignore[assignment]
+    STREAMLIT_IMPORT_ERROR = exc
+else:  # pragma: no cover - simple assignment
+    STREAMLIT_IMPORT_ERROR = None
 
 try:
     from st_aggrid import AgGrid, GridOptionsBuilder  # type: ignore[import]
@@ -30,23 +37,37 @@ def filter_by_year(df: pd.DataFrame, year_range: Tuple[int, int]) -> pd.DataFram
     return df[(df["集計年"] >= start) & (df["集計年"] <= end)]
 
 
+def require_streamlit():
+    if st is None:
+        raise ModuleNotFoundError(
+            "Streamlit is required to run this application. Install streamlit to proceed."
+        ) from STREAMLIT_IMPORT_ERROR
+    return st
+
+
 def update_query_params(major: str, mid: str, year_range: Tuple[int, int]) -> None:
+    streamlit = require_streamlit()
+
     try:
-        params = st.query_params
+        params = streamlit.query_params
         params["maj"] = major
         params["mid"] = mid
         params["y1"] = str(year_range[0])
         params["y2"] = str(year_range[1])
     except Exception:
-        st.experimental_set_query_params(maj=major, mid=mid, y1=year_range[0], y2=year_range[1])
+        streamlit.experimental_set_query_params(
+            maj=major, mid=mid, y1=year_range[0], y2=year_range[1]
+        )
 
 
 def get_initial_params() -> Tuple[str | None, str | None, Tuple[int | None, int | None]]:
+    streamlit = require_streamlit()
+
     try:
-        params = st.query_params
+        params = streamlit.query_params
         get_value = params.get
     except Exception:
-        params = st.experimental_get_query_params()
+        params = streamlit.experimental_get_query_params()
         get_value = params.get
     major_param = get_value("maj")
     mid_param = get_value("mid")
@@ -71,15 +92,17 @@ def get_initial_params() -> Tuple[str | None, str | None, Tuple[int | None, int 
 
 
 def render_table(table_df: pd.DataFrame) -> None:
+    streamlit = require_streamlit()
+
     if table_df.empty:
-        st.info("年次 KPI テーブルを表示できるデータがありません。")
+        streamlit.info("年次 KPI テーブルを表示できるデータがありません。")
         return
     if not HAS_AGGRID or AgGrid is None or GridOptionsBuilder is None:
-        st.warning(
+        streamlit.warning(
             "インタラクティブな表の表示には streamlit-aggrid のインストールが必要です。"
             "簡易表示モードでテーブルを表示しています。"
         )
-        st.dataframe(table_df)
+        streamlit.dataframe(table_df)
     else:
         grid_builder = GridOptionsBuilder.from_dataframe(table_df)
         grid_builder.configure_default_column(filter=True, sortable=True, resizable=True)
@@ -87,7 +110,7 @@ def render_table(table_df: pd.DataFrame) -> None:
         grid_options = grid_builder.build()
         AgGrid(table_df, gridOptions=grid_options, height=320, theme="balham")
     csv = table_df.to_csv(index=False).encode("utf-8-sig")
-    st.download_button(
+    streamlit.download_button(
         "CSV ダウンロード",
         data=csv,
         file_name="kpi_table.csv",
@@ -97,19 +120,21 @@ def render_table(table_df: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="中小企業経営分析ダッシュボード", layout="wide")
+    streamlit = require_streamlit()
+
+    streamlit.set_page_config(page_title="中小企業経営分析ダッシュボード", layout="wide")
     components.load_css("assets/styles.css")
 
-    st.title("中小企業 経営分析ダッシュボード")
+    streamlit.title("中小企業 経営分析ダッシュボード")
 
     if not DATA_PATH.exists():
-        st.error("初期データファイルが見つかりません。管理者にお問い合わせください。")
+        streamlit.error("初期データファイルが見つかりません。管理者にお問い合わせください。")
         return
 
     data = data_loader.load_dataset(DATA_PATH, DB_PATH)
 
     if data.empty:
-        st.warning("データが読み込めませんでした。CSV を確認してください。")
+        streamlit.warning("データが読み込めませんでした。CSV を確認してください。")
         return
 
     initial_major, initial_mid, (initial_start, initial_end) = get_initial_params()
@@ -143,9 +168,9 @@ def main() -> None:
     else:
         year_range_default = (max(min_year, max_year - 4), max_year)
 
-    top_cols = st.columns([1.2, 1.2, 2.2, 1.2])
+    top_cols = streamlit.columns([1.2, 1.2, 2.2, 1.2])
     with top_cols[0]:
-        major_selection = st.selectbox(
+        major_selection = streamlit.selectbox(
             "産業大分類コード",
             options=major_options,
             index=major_codes.index(default_major) if default_major in major_codes else 0,
@@ -157,7 +182,7 @@ def main() -> None:
     mid_lookup = {f"{name} ({code})": name for code, name in mid_options}
     default_mid_display = next((label for label, name in mid_lookup.items() if name == default_mid), mid_display[0] if mid_display else "")
     with top_cols[1]:
-        mid_selection_label = st.selectbox(
+        mid_selection_label = streamlit.selectbox(
             "業種中分類",
             options=mid_display,
             index=mid_display.index(default_mid_display) if default_mid_display in mid_display else 0,
@@ -165,7 +190,7 @@ def main() -> None:
         )
         mid_selection = mid_lookup[mid_selection_label]
     with top_cols[2]:
-        year_range = st.slider(
+        year_range = streamlit.slider(
             "表示年範囲",
             min_value=int(min_year),
             max_value=int(max_year),
@@ -173,17 +198,17 @@ def main() -> None:
             step=1,
         )
     with top_cols[3]:
-        if st.button("データ更新", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-        uploaded = st.file_uploader("データ取り込み", type=["csv"], label_visibility="collapsed")
+        if streamlit.button("データ更新", use_container_width=True):
+            streamlit.cache_data.clear()
+            streamlit.rerun()
+        uploaded = streamlit.file_uploader("データ取り込み", type=["csv"], label_visibility="collapsed")
         if uploaded is not None:
             updated = data_loader.upsert_uploaded_file(uploaded.getvalue(), DB_PATH)
             if updated.empty:
                 components.show_toast("取り込めるデータが見つかりませんでした", icon="⚠️")
             else:
                 components.show_toast("データを取り込みました", icon="✅")
-                st.rerun()
+                streamlit.rerun()
 
     update_query_params(major_selection, mid_selection, year_range)
 
@@ -192,7 +217,7 @@ def main() -> None:
         components.show_toast("選択された組合せのデータは未登録です", icon="⚠️")
         suggestions = [label for label in mid_display if mid_lookup[label] != mid_selection]
         if suggestions:
-            st.info("代替候補: " + "、".join(suggestions[:5]))
+            streamlit.info("代替候補: " + "、".join(suggestions[:5]))
         return
 
     current_yearly = metrics.compute_yearly_aggregates(filtered)
@@ -208,14 +233,14 @@ def main() -> None:
     kpis = metrics.build_kpi_results(current_metrics_range)
     components.render_kpi_cards(kpis)
 
-    st.subheader("主要指標のトレンド")
+    streamlit.subheader("主要指標のトレンド")
 
     sales_profit_fig = charts.sales_and_profit_chart(
         current_metrics_range,
         major_metrics_range,
         overall_metrics_range,
     )
-    st.plotly_chart(sales_profit_fig, use_container_width=True)
+    streamlit.plotly_chart(sales_profit_fig, use_container_width=True)
     components.download_chart_button(sales_profit_fig, "PNG ダウンロード", "sales_profit")
 
     profitability_fig = charts.profitability_chart(
@@ -223,11 +248,11 @@ def main() -> None:
         major_metrics_range,
         overall_metrics_range,
     )
-    st.plotly_chart(profitability_fig, use_container_width=True)
+    streamlit.plotly_chart(profitability_fig, use_container_width=True)
     components.download_chart_button(profitability_fig, "PNG ダウンロード", "profitability")
 
     bs_fig = charts.balance_sheet_structure_chart(current_metrics_range)
-    st.plotly_chart(bs_fig, use_container_width=True)
+    streamlit.plotly_chart(bs_fig, use_container_width=True)
     components.download_chart_button(bs_fig, "PNG ダウンロード", "balance_sheet")
 
     ebitda_fig = charts.ebitda_interest_chart(
@@ -235,7 +260,7 @@ def main() -> None:
         major_metrics_range,
         overall_metrics_range,
     )
-    st.plotly_chart(ebitda_fig, use_container_width=True)
+    streamlit.plotly_chart(ebitda_fig, use_container_width=True)
     components.download_chart_button(ebitda_fig, "PNG ダウンロード", "ebitda_interest")
 
     productivity_fig = charts.productivity_distribution_chart(
@@ -243,7 +268,7 @@ def main() -> None:
         major_metrics_range,
         overall_metrics_range,
     )
-    st.plotly_chart(productivity_fig, use_container_width=True)
+    streamlit.plotly_chart(productivity_fig, use_container_width=True)
     components.download_chart_button(productivity_fig, "PNG ダウンロード", "productivity")
 
     dupont_fig = charts.dupont_chart(
@@ -251,10 +276,10 @@ def main() -> None:
         major_metrics_range,
         overall_metrics_range,
     )
-    st.plotly_chart(dupont_fig, use_container_width=True)
+    streamlit.plotly_chart(dupont_fig, use_container_width=True)
     components.download_chart_button(dupont_fig, "PNG ダウンロード", "dupont")
 
-    st.subheader("年次 KPI 一覧")
+    streamlit.subheader("年次 KPI 一覧")
     table_df = metrics.build_metric_table(current_metrics_range)
     render_table(table_df)
 
