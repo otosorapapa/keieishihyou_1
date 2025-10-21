@@ -5,7 +5,14 @@ from typing import Tuple
 
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder
+
+try:
+    from st_aggrid import AgGrid, GridOptionsBuilder  # type: ignore[import]
+    HAS_AGGRID = True
+except ModuleNotFoundError:
+    AgGrid = None  # type: ignore[assignment]
+    GridOptionsBuilder = None  # type: ignore[assignment]
+    HAS_AGGRID = False
 
 from services import aggregations, data_loader, metrics
 from ui import charts, components
@@ -67,11 +74,18 @@ def render_table(table_df: pd.DataFrame) -> None:
     if table_df.empty:
         st.info("年次 KPI テーブルを表示できるデータがありません。")
         return
-    grid_builder = GridOptionsBuilder.from_dataframe(table_df)
-    grid_builder.configure_default_column(filter=True, sortable=True, resizable=True)
-    grid_builder.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
-    grid_options = grid_builder.build()
-    AgGrid(table_df, gridOptions=grid_options, height=320, theme="balham")
+    if not HAS_AGGRID or AgGrid is None or GridOptionsBuilder is None:
+        st.warning(
+            "インタラクティブな表の表示には streamlit-aggrid のインストールが必要です。"
+            "簡易表示モードでテーブルを表示しています。"
+        )
+        st.dataframe(table_df)
+    else:
+        grid_builder = GridOptionsBuilder.from_dataframe(table_df)
+        grid_builder.configure_default_column(filter=True, sortable=True, resizable=True)
+        grid_builder.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+        grid_options = grid_builder.build()
+        AgGrid(table_df, gridOptions=grid_options, height=320, theme="balham")
     csv = table_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         "CSV ダウンロード",
