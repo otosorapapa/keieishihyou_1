@@ -1,13 +1,30 @@
 from __future__ import annotations
 
+import importlib.util
 import io
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import pandas as pd
 import streamlit as st
 
-from .duckdb_store import DuckDBNotAvailableError, DuckDBStore
+if TYPE_CHECKING:  # pragma: no cover - hints only
+    from .duckdb_store import DuckDBNotAvailableError, DuckDBStore
+
+
+class DuckDBUnavailable(RuntimeError):
+    """Sentinel error when DuckDB (and therefore DuckDBStore) cannot be used."""
+
+
+_DUCKDB_SPEC = importlib.util.find_spec("duckdb")
+if _DUCKDB_SPEC is not None:
+    from .duckdb_store import DuckDBNotAvailableError, DuckDBStore  # pragma: no cover
+else:  # pragma: no cover - exercised only when duckdb missing
+    DuckDBStore = None  # type: ignore[assignment]
+
+    class DuckDBNotAvailableError(DuckDBUnavailable):
+        """Local fallback when duckdb dependency is absent."""
+
 from .encoding import detect_bytes
 
 KEY_COLUMNS = [
@@ -18,6 +35,14 @@ KEY_COLUMNS = [
     "業種中分類名",
     "集計形式",
 ]
+
+
+def _ensure_store(db_path: str | Path):
+    if "DuckDBStore" not in globals() or DuckDBStore is None:  # type: ignore[name-defined]
+        raise DuckDBNotAvailableError(
+            "DuckDB is not installed. Persistent storage features are disabled."
+        )
+    return DuckDBStore(db_path)  # type: ignore[return-value]
 
 
 @st.cache_data(show_spinner=False)
@@ -75,8 +100,8 @@ def load_dataset(csv_path: str | Path, db_path: str | Path = "app.duckdb") -> pd
     if base_df.empty:
         return base_df
 
-    store = DuckDBStore(db_path)
     try:
+        store = _ensure_store(db_path)
         store.upsert_dataframe(base_df, KEY_COLUMNS)
         stored_df = store.fetch_all()
     except DuckDBNotAvailableError:
@@ -110,8 +135,8 @@ def upsert_uploaded_file(data: bytes, db_path: str | Path = "app.duckdb") -> pd.
     if df.empty:
         return df
 
-    store = DuckDBStore(db_path)
     try:
+        store = _ensure_store(db_path)
         store.upsert_dataframe(df, KEY_COLUMNS)
         return store.fetch_all()
     except DuckDBNotAvailableError:
