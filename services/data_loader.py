@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import io
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
@@ -14,12 +13,11 @@ if TYPE_CHECKING:  # pragma: no cover - hints only
 
 class DuckDBUnavailable(RuntimeError):
     """Sentinel error when DuckDB (and therefore DuckDBStore) cannot be used."""
-
-
-_DUCKDB_SPEC = importlib.util.find_spec("duckdb")
-if _DUCKDB_SPEC is not None:
-    from .duckdb_store import DuckDBNotAvailableError, DuckDBStore  # pragma: no cover
-else:  # pragma: no cover - exercised only when duckdb missing
+try:  # pragma: no cover - exercised only when duckdb missing
+    from .duckdb_store import DuckDBNotAvailableError, DuckDBStore
+except ModuleNotFoundError as exc:  # pragma: no cover - import guard
+    if exc.name != "duckdb":
+        raise
     DuckDBStore = None  # type: ignore[assignment]
 
     class DuckDBNotAvailableError(DuckDBUnavailable):
