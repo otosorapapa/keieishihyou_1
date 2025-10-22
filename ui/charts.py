@@ -1,11 +1,24 @@
 from __future__ import annotations
 
-from typing import Optional
+import importlib.util
+from typing import Optional, TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+HAS_PLOTLY = importlib.util.find_spec("plotly.graph_objects") is not None
+
+if HAS_PLOTLY:  # pragma: no branch - simple import guard
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+else:  # pragma: no cover - executed when Plotly is unavailable
+    go = Any  # type: ignore[assignment]
+
+    def make_subplots(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("Plotly is required to create subplots.")
+
+if TYPE_CHECKING:  # pragma: no cover - only for static analysis
+    import plotly.graph_objects as go  # noqa: F401  # pylint: disable=unused-import
 
 FONT_FAMILY = "Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP, Meiryo, sans-serif"
 PRIMARY_COLOR = "#2c7be5"
@@ -15,7 +28,7 @@ GREY_MAJOR = "#6c757d"
 GREY_OVERALL = "#adb5bd"
 
 
-def _base_layout(fig: go.Figure, title: str) -> go.Figure:
+def _base_layout(fig: "go.Figure", title: str) -> "go.Figure":
     fig.update_layout(
         title=title,
         template="plotly_white",
@@ -28,7 +41,7 @@ def _base_layout(fig: go.Figure, title: str) -> go.Figure:
 
 
 def _line(
-    fig: go.Figure,
+    fig: "go.Figure",
     x,
     y,
     name: str,
@@ -53,7 +66,9 @@ def sales_and_profit_chart(
     current: pd.DataFrame,
     major: pd.DataFrame,
     overall: pd.DataFrame,
-) -> go.Figure:
+) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if not current.empty:
         x = current["集計年"]
@@ -75,7 +90,13 @@ def sales_and_profit_chart(
     return _base_layout(fig, "売上高と利益の推移")
 
 
-def profitability_chart(current: pd.DataFrame, major: pd.DataFrame, overall: pd.DataFrame) -> go.Figure:
+def profitability_chart(
+    current: pd.DataFrame,
+    major: pd.DataFrame,
+    overall: pd.DataFrame,
+) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = go.Figure()
     if not current.empty:
         x = current["集計年"]
@@ -92,7 +113,16 @@ def profitability_chart(current: pd.DataFrame, major: pd.DataFrame, overall: pd.
     return _base_layout(fig, "利益率の推移")
 
 
-def _stacked_bar(x, y, name: str, color: str, row: int, col: int, fig: go.Figure, orientation: str = "h") -> None:
+def _stacked_bar(
+    x,
+    y,
+    name: str,
+    color: str,
+    row: int,
+    col: int,
+    fig: "go.Figure",
+    orientation: str = "h",
+) -> None:
     fig.add_trace(
         go.Bar(
             x=x if orientation == "h" else y,
@@ -106,7 +136,9 @@ def _stacked_bar(x, y, name: str, color: str, row: int, col: int, fig: go.Figure
     )
 
 
-def balance_sheet_structure_chart(current: pd.DataFrame) -> go.Figure:
+def balance_sheet_structure_chart(current: pd.DataFrame) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     if current.empty:
         return go.Figure()
     fig = make_subplots(
@@ -144,7 +176,13 @@ def balance_sheet_structure_chart(current: pd.DataFrame) -> go.Figure:
     return _base_layout(fig, "バランスシート構成比")
 
 
-def ebitda_interest_chart(current: pd.DataFrame, major: pd.DataFrame, overall: pd.DataFrame) -> go.Figure:
+def ebitda_interest_chart(
+    current: pd.DataFrame,
+    major: pd.DataFrame,
+    overall: pd.DataFrame,
+) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if not current.empty:
         x = current["集計年"]
@@ -174,7 +212,13 @@ def ebitda_interest_chart(current: pd.DataFrame, major: pd.DataFrame, overall: p
     return _base_layout(fig, "EBITDA と利払負担")
 
 
-def productivity_distribution_chart(current: pd.DataFrame, major: pd.DataFrame, overall: pd.DataFrame) -> go.Figure:
+def productivity_distribution_chart(
+    current: pd.DataFrame,
+    major: pd.DataFrame,
+    overall: pd.DataFrame,
+) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if not current.empty:
         x = current["集計年"]
@@ -193,7 +237,13 @@ def productivity_distribution_chart(current: pd.DataFrame, major: pd.DataFrame, 
     return _base_layout(fig, "労働生産性と労働分配率")
 
 
-def dupont_chart(current: pd.DataFrame, major: pd.DataFrame, overall: pd.DataFrame) -> go.Figure:
+def dupont_chart(
+    current: pd.DataFrame,
+    major: pd.DataFrame,
+    overall: pd.DataFrame,
+) -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = go.Figure()
     if not current.empty:
         x = current["集計年"]
