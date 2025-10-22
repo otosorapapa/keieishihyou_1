@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 import streamlit as st
 
-from .duckdb_store import DuckDBStore
+from .duckdb_store import DuckDBNotAvailableError, DuckDBStore
 from .encoding import detect_bytes
 
 KEY_COLUMNS = [
@@ -71,11 +71,17 @@ def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 def load_dataset(csv_path: str | Path, db_path: str | Path = "app.duckdb") -> pd.DataFrame:
     """Load dataset from DuckDB, initialising from CSV if necessary."""
-    store = DuckDBStore(db_path)
     base_df = load_csv_data(csv_path)
-    if not base_df.empty:
+    if base_df.empty:
+        return base_df
+
+    store = DuckDBStore(db_path)
+    try:
         store.upsert_dataframe(base_df, KEY_COLUMNS)
-    stored_df = store.fetch_all()
+        stored_df = store.fetch_all()
+    except DuckDBNotAvailableError:
+        return base_df
+
     if stored_df.empty:
         return base_df
     return stored_df
@@ -105,8 +111,11 @@ def upsert_uploaded_file(data: bytes, db_path: str | Path = "app.duckdb") -> pd.
         return df
 
     store = DuckDBStore(db_path)
-    store.upsert_dataframe(df, KEY_COLUMNS)
-    return store.fetch_all()
+    try:
+        store.upsert_dataframe(df, KEY_COLUMNS)
+        return store.fetch_all()
+    except DuckDBNotAvailableError:
+        return df
 
 
 def get_major_options(df: pd.DataFrame) -> list[tuple[str, str]]:
