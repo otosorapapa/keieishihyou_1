@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, TYPE_CHECKING, Any
 
-import plotly.graph_objects as go
+import importlib.util
+
 import streamlit as st
 
 from services.metrics import KPIResult
 
 FONT_FAMILY = "Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP, Meiryo, sans-serif"
+
+HAS_PLOTLY = importlib.util.find_spec("plotly.graph_objects") is not None
+
+if HAS_PLOTLY:  # pragma: no branch - simple import guard
+    import plotly.graph_objects as go
+else:  # pragma: no cover - executed when Plotly is unavailable
+    go = Any  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - only for static analysis
+    import plotly.graph_objects as go  # noqa: F401  # pylint: disable=unused-import
 
 
 def load_css(path: str | Path) -> None:
@@ -41,7 +52,9 @@ def format_yoy(yoy: Optional[float], value_type: str, yoy_type: str) -> str:
     return f"{yoy:+.2f}"
 
 
-def sparkline(series: Iterable[float], color: str = "#2c7be5") -> go.Figure:
+def sparkline(series: Iterable[float], color: str = "#2c7be5") -> Optional["go.Figure"]:
+    if not HAS_PLOTLY:
+        return None
     fig = go.Figure()
     if series is not None:
         fig.add_trace(
@@ -70,6 +83,7 @@ def render_kpi_cards(kpis: Iterable[KPIResult], columns_per_row: int = 4) -> Non
     kpis = list(kpis)
     if not kpis:
         return
+    warned_missing_plotly = False
     for i in range(0, len(kpis), columns_per_row):
         row = kpis[i : i + columns_per_row]
         cols = st.columns(len(row))
@@ -102,20 +116,30 @@ def render_kpi_cards(kpis: Iterable[KPIResult], columns_per_row: int = 4) -> Non
                     unsafe_allow_html=True,
                 )
                 if kpi.sparkline is not None and len(kpi.sparkline) > 1:
-                    st.plotly_chart(
-                        sparkline(kpi.sparkline),
-                        use_container_width=True,
-                        config={"displayModeBar": False},
-                    )
+                    sparkline_fig = sparkline(kpi.sparkline)
+                    if sparkline_fig is not None:
+                        st.plotly_chart(
+                            sparkline_fig,
+                            use_container_width=True,
+                            config={"displayModeBar": False},
+                        )
+                    else:
+                        warned_missing_plotly = True
+                        st.line_chart(kpi.sparkline, height=80)
                 else:
                     st.write(" ")
+    if warned_missing_plotly and not HAS_PLOTLY:
+        st.info("Plotly がインストールされていないため、簡易スパークラインを表示しています。")
 
 
 def show_toast(message: str, icon: str = "ℹ️") -> None:
     st.toast(f"{icon} {message}")
 
 
-def download_chart_button(fig: go.Figure, label: str, key: str) -> None:
+def download_chart_button(fig: Optional["go.Figure"], label: str, key: str) -> None:
+    if fig is None or not HAS_PLOTLY:
+        st.info("Plotly がインストールされていないため、チャートのダウンロードは利用できません。")
+        return
     try:
         image_bytes = fig.to_image(format="png", width=1280, height=720, scale=2)
         st.download_button(

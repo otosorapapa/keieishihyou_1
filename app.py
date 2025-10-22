@@ -235,49 +235,55 @@ def main() -> None:
 
     streamlit.subheader("主要指標のトレンド")
 
-    sales_profit_fig = charts.sales_and_profit_chart(
-        current_metrics_range,
-        major_metrics_range,
-        overall_metrics_range,
-    )
-    streamlit.plotly_chart(sales_profit_fig, use_container_width=True)
-    components.download_chart_button(sales_profit_fig, "PNG ダウンロード", "sales_profit")
+    if not charts.HAS_PLOTLY:
+        streamlit.warning(
+            "Plotly がインストールされていないため、グラフは表示されません。"
+            "requirements.txt に記載された依存関係をインストールしてください。"
+        )
+    else:
+        sales_profit_fig = charts.sales_and_profit_chart(
+            current_metrics_range,
+            major_metrics_range,
+            overall_metrics_range,
+        )
+        streamlit.plotly_chart(sales_profit_fig, use_container_width=True)
+        components.download_chart_button(sales_profit_fig, "PNG ダウンロード", "sales_profit")
 
-    profitability_fig = charts.profitability_chart(
-        current_metrics_range,
-        major_metrics_range,
-        overall_metrics_range,
-    )
-    streamlit.plotly_chart(profitability_fig, use_container_width=True)
-    components.download_chart_button(profitability_fig, "PNG ダウンロード", "profitability")
+        profitability_fig = charts.profitability_chart(
+            current_metrics_range,
+            major_metrics_range,
+            overall_metrics_range,
+        )
+        streamlit.plotly_chart(profitability_fig, use_container_width=True)
+        components.download_chart_button(profitability_fig, "PNG ダウンロード", "profitability")
 
-    bs_fig = charts.balance_sheet_structure_chart(current_metrics_range)
-    streamlit.plotly_chart(bs_fig, use_container_width=True)
-    components.download_chart_button(bs_fig, "PNG ダウンロード", "balance_sheet")
+        bs_fig = charts.balance_sheet_structure_chart(current_metrics_range)
+        streamlit.plotly_chart(bs_fig, use_container_width=True)
+        components.download_chart_button(bs_fig, "PNG ダウンロード", "balance_sheet")
 
-    ebitda_fig = charts.ebitda_interest_chart(
-        current_metrics_range,
-        major_metrics_range,
-        overall_metrics_range,
-    )
-    streamlit.plotly_chart(ebitda_fig, use_container_width=True)
-    components.download_chart_button(ebitda_fig, "PNG ダウンロード", "ebitda_interest")
+        ebitda_fig = charts.ebitda_interest_chart(
+            current_metrics_range,
+            major_metrics_range,
+            overall_metrics_range,
+        )
+        streamlit.plotly_chart(ebitda_fig, use_container_width=True)
+        components.download_chart_button(ebitda_fig, "PNG ダウンロード", "ebitda_interest")
 
-    productivity_fig = charts.productivity_distribution_chart(
-        current_metrics_range,
-        major_metrics_range,
-        overall_metrics_range,
-    )
-    streamlit.plotly_chart(productivity_fig, use_container_width=True)
-    components.download_chart_button(productivity_fig, "PNG ダウンロード", "productivity")
+        productivity_fig = charts.productivity_distribution_chart(
+            current_metrics_range,
+            major_metrics_range,
+            overall_metrics_range,
+        )
+        streamlit.plotly_chart(productivity_fig, use_container_width=True)
+        components.download_chart_button(productivity_fig, "PNG ダウンロード", "productivity")
 
-    dupont_fig = charts.dupont_chart(
-        current_metrics_range,
-        major_metrics_range,
-        overall_metrics_range,
-    )
-    streamlit.plotly_chart(dupont_fig, use_container_width=True)
-    components.download_chart_button(dupont_fig, "PNG ダウンロード", "dupont")
+        dupont_fig = charts.dupont_chart(
+            current_metrics_range,
+            major_metrics_range,
+            overall_metrics_range,
+        )
+        streamlit.plotly_chart(dupont_fig, use_container_width=True)
+        components.download_chart_button(dupont_fig, "PNG ダウンロード", "dupont")
 
     streamlit.subheader("年次 KPI 一覧")
     table_df = metrics.build_metric_table(current_metrics_range)
