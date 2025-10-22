@@ -4,11 +4,11 @@ import io
 from pathlib import Path
 from typing import Optional
 
-import chardet
 import pandas as pd
 import streamlit as st
 
 from .duckdb_store import DuckDBStore
+from .encoding import detect_bytes
 
 KEY_COLUMNS = [
     "集計年",
@@ -25,7 +25,7 @@ def detect_encoding(path: str | Path, sample_size: int = 1_000_000) -> str:
     """Detect file encoding prioritising cp932."""
     path = Path(path)
     raw = path.read_bytes()[:sample_size]
-    guess = chardet.detect(raw)
+    guess = detect_bytes(raw)
     encoding = guess.get("encoding") or ""
     if encoding:
         encoding = encoding.lower()
@@ -86,7 +86,7 @@ def upsert_uploaded_file(data: bytes, db_path: str | Path = "app.duckdb") -> pd.
     if not data:
         return pd.DataFrame()
 
-    detected = chardet.detect(data)
+    detected = detect_bytes(data)
     encoding = (detected.get("encoding") or "").lower()
     if encoding in {"shift_jis", "cp932", "sjis"}:
         encoding = "cp932"
