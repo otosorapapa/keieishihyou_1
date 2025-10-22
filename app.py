@@ -36,7 +36,8 @@ except ModuleNotFoundError as exc:  # pragma: no cover - executed when Plotly is
         raise
 else:  # pragma: no cover - simple assignment when import succeeds
     charts = charts_module
-    CHARTS_IMPORT_ERROR = None
+    error = getattr(charts_module, "PLOTLY_IMPORT_ERROR", None)
+    CHARTS_IMPORT_ERROR = error if isinstance(error, ModuleNotFoundError) else None
 
 from ui import components
 
