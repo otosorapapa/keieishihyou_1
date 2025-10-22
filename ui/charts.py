@@ -2,15 +2,28 @@ from __future__ import annotations
 
 from typing import Optional, TYPE_CHECKING, Any
 
+import importlib.util
+
 import numpy as np
 import pandas as pd
 
-try:  # pragma: no cover - simple import guard
+PLOTLY_IMPORT_ERROR: ModuleNotFoundError | None
+
+_graph_objects_spec = importlib.util.find_spec("plotly.graph_objects")
+_subplots_spec = importlib.util.find_spec("plotly.subplots")
+
+if _graph_objects_spec is not None and _subplots_spec is not None:
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
+
     HAS_PLOTLY = True
-except ModuleNotFoundError:  # pragma: no cover - executed when Plotly is unavailable
+    PLOTLY_IMPORT_ERROR = None
+else:  # pragma: no cover - executed when Plotly is unavailable
     HAS_PLOTLY = False
+    PLOTLY_IMPORT_ERROR = ModuleNotFoundError(
+        "Plotly is not installed. Install plotly to enable interactive charts.",
+        name="plotly",
+    )
     go = Any  # type: ignore[assignment]
 
     def make_subplots(*_args: Any, **_kwargs: Any) -> None:
