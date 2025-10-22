@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import importlib.util
 from typing import Optional, TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
-HAS_PLOTLY = importlib.util.find_spec("plotly.graph_objects") is not None
-
-if HAS_PLOTLY:  # pragma: no branch - simple import guard
+try:  # pragma: no cover - simple import guard
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-else:  # pragma: no cover - executed when Plotly is unavailable
+    HAS_PLOTLY = True
+except ModuleNotFoundError:  # pragma: no cover - executed when Plotly is unavailable
+    HAS_PLOTLY = False
     go = Any  # type: ignore[assignment]
 
     def make_subplots(*_args: Any, **_kwargs: Any) -> None:
