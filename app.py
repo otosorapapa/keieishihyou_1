@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Tuple
 
 import pandas as pd
 
@@ -22,12 +22,32 @@ except ModuleNotFoundError:
     HAS_AGGRID = False
 
 from services import aggregations, data_loader, metrics
-from ui import charts, components
+
+charts: Any | None
+CHARTS_IMPORT_ERROR: ModuleNotFoundError | None
+
+try:
+    from ui import charts as charts_module
+except ModuleNotFoundError as exc:  # pragma: no cover - executed when Plotly is missing
+    if getattr(exc, "name", "").startswith("plotly"):
+        charts = None
+        CHARTS_IMPORT_ERROR = exc
+    else:  # pragma: no cover - re-raise unrelated import errors
+        raise
+else:  # pragma: no cover - simple assignment when import succeeds
+    charts = charts_module
+    CHARTS_IMPORT_ERROR = None
+
+from ui import components
 
 DATA_PATH = Path("/mnt/data/産業構造マップ_中小企業経営分析_推移　bs pl　従業員数.csv")
 DEFAULT_MAJOR_CODE = "D"
 DEFAULT_MID_NAME = "設備工事業"
 DB_PATH = Path("app.duckdb")
+
+
+def plotly_available() -> bool:
+    return charts is not None and bool(getattr(charts, "HAS_PLOTLY", False))
 
 
 def filter_by_year(df: pd.DataFrame, year_range: Tuple[int, int]) -> pd.DataFrame:
@@ -235,12 +255,17 @@ def main() -> None:
 
     streamlit.subheader("主要指標のトレンド")
 
-    if not charts.HAS_PLOTLY:
-        streamlit.warning(
-            "Plotly がインストールされていないため、グラフは表示されません。"
+    if not plotly_available():
+        warning_message = (
+            "Plotly がインストールされていないため、グラフは表示されません。\n"
             "requirements.txt に記載された依存関係をインストールしてください。"
         )
+        if CHARTS_IMPORT_ERROR is not None:
+            warning_message += f"\n詳細: {CHARTS_IMPORT_ERROR}"
+        streamlit.warning(warning_message)
     else:
+        assert charts is not None  # noqa: S101 - guard for type checkers
+
         sales_profit_fig = charts.sales_and_profit_chart(
             current_metrics_range,
             major_metrics_range,
