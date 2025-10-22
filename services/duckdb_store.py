@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING, Any
 
-import duckdb
 import pandas as pd
+
+if TYPE_CHECKING:
+    from duckdb import DuckDBPyConnection
+
+
+class DuckDBNotAvailableError(RuntimeError):
+    """Raised when the DuckDB dependency is not available."""
+
+
+def _load_duckdb() -> Any:
+    """Import duckdb lazily so the app can run without the dependency."""
+
+    module_name = "duckdb"
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        raise DuckDBNotAvailableError(
+            "DuckDB is required for persistent storage. Install it with 'pip install duckdb'."
+        )
+    module = importlib.import_module(module_name)
+    return module
 
 
 class DuckDBStore:
@@ -13,7 +34,8 @@ class DuckDBStore:
         self.table_name = table_name
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def _connect(self) -> duckdb.DuckDBPyConnection:
+    def _connect(self) -> "DuckDBPyConnection":
+        duckdb = _load_duckdb()
         return duckdb.connect(str(self.db_path))
 
     def fetch_all(self) -> pd.DataFrame:
